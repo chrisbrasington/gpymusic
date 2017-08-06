@@ -1,31 +1,37 @@
 #!/usr/bin/env python3
 
-from gpymusic import client
-from gpymusic import common
-from gpymusic import start
+import appdirs
+import curses
+import getpass
+import gpymusic
+import json
+import os
 
-if __name__ == '__main__':
-    start.check_dirs()
-    common.w.replace_windows(*start.get_windows())
-    common.w.curses = True
-    config = start.read_config()
-    colour = start.validate_config(config)
-    if colour:
-        start.set_colours(config['colour'])
-        common.w.colour = True
-    common.w.welcome()
-    start.login(config['user'])
-    common.w.addstr(
-        common.w.infobar,
-        'Enter \'h\' or \'help\' if you need help.'
-    )
+if __name__ == "__main__":
+    app = "gpymusic"
+    config_dir = appdirs.user_config_dir(app)
+    print(config_dir)
+    data_dir = appdirs.user_data_dir(app)
+    config_file = os.path.join(config_dir, "config.json")
 
-    common.client = client.FullClient() if (
-        common.mc.is_subscribed
-    ) else client.FreeClient()
+    if not os.path.isdir(config_dir):
+        print("Config directory %s does not exist: Exiting." % config_dir)
+        exit()
+    elif not os.path.isdir(data_dir):
+        print("Data directory %s does not exist: Exiting." % data_dir)
+        exit()
+    elif not os.path.isfile(config_file):
+        print("Config file %s does not exist: Exiting." % config_file)
+        exit()
 
-    while True:
-        common.client.transition()
+    with open(config_file) as f:
+        config = json.load(f)
+    if "password" not in config or not config["password"]:
+        print("Enter your password: ")
+        config["password"] = getpass.getpass()
+    for k in ["email", "password", "deviceid"]:
+        if k not in config or not config[k]:
+            print("Config is missing a required value '%s': Exiting." % k)
+            exit()
 
-else:
-    start.easy_login()
+    curses.wrapper(gpymusic.main, config)
